@@ -8,10 +8,14 @@
 import SwiftUI
 
 @main
-struct ArtworkRecognitionDemoApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
+struct ArtworkRecognitionApp: App {
+  var body: some Scene {
+    WindowGroup {
+      if #available(iOS 16.0, *) {
+        ArtMuseumApp()
+      } else {
+        Text("This app requires iOS 16.0 or later")
+      }
     }
+  }
 }

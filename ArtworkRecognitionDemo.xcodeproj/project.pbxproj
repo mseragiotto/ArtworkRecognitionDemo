@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E19660082D8C3E4C009E7F37 /* MARS in Frameworks */ = {isa = PBXBuildFile; productRef = E19660072D8C3E4C009E7F37 /* MARS */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		E104A5442D8B73A7007061F8 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -29,9 +33,22 @@
 		E104A54D2D8B73A7007061F8 /* ArtworkRecognitionDemoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ArtworkRecognitionDemoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E196600D2D8C6B90009E7F37 /* Exceptions for "ArtworkRecognitionDemo" folder in "ArtworkRecognitionDemo" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E104A5322D8B73A5007061F8 /* ArtworkRecognitionDemo */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E104A5352D8B73A5007061F8 /* ArtworkRecognitionDemo */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E196600D2D8C6B90009E7F37 /* Exceptions for "ArtworkRecognitionDemo" folder in "ArtworkRecognitionDemo" target */,
+			);
 			path = ArtworkRecognitionDemo;
 			sourceTree = "<group>";
 		};
@@ -52,6 +69,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E19660082D8C3E4C009E7F37 /* MARS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +130,7 @@
 			);
 			name = ArtworkRecognitionDemo;
 			packageProductDependencies = (
+				E19660072D8C3E4C009E7F37 /* MARS */,
 			);
 			productName = ArtworkRecognitionDemo;
 			productReference = E104A5332D8B73A5007061F8 /* ArtworkRecognitionDemo.app */;
@@ -195,6 +214,9 @@
 			);
 			mainGroup = E104A52A2D8B73A5007061F8;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E19660062D8C3E4C009E7F37 /* XCRemoteSwiftPackageReference "MARS_variation" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E104A5342D8B73A5007061F8 /* Products */;
 			projectDirPath = "";
@@ -321,6 +343,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = Yes;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
@@ -378,6 +401,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = Yes;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
@@ -399,6 +423,9 @@
 				DEVELOPMENT_TEAM = 7LCDH3P84H;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ArtworkRecognitionDemo/Info.plist;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = yes;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -428,6 +455,9 @@
 				DEVELOPMENT_TEAM = 7LCDH3P84H;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ArtworkRecognitionDemo/Info.plist;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = yes;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -558,6 +588,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E19660062D8C3E4C009E7F37 /* XCRemoteSwiftPackageReference "MARS_variation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mseragiotto/MARS_variation";
+			requirement = {
+				branch = test_OpenLibrary;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E19660072D8C3E4C009E7F37 /* MARS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E19660062D8C3E4C009E7F37 /* XCRemoteSwiftPackageReference "MARS_variation" */;
+			productName = MARS;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E104A52B2D8B73A5007061F8 /* Project object */;
 }
