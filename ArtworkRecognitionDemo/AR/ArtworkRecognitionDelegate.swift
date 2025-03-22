@@ -12,9 +12,13 @@ import Vision
 class ArtworkRecognitionDelegate: NSObject, ARSCNViewDelegate {
     // Collection of artwork reference images
     private(set) var artworkImages: Set<ARReferenceImage> = []
+    private var detectedArtworks = Set<String>()
     
     // Subject to publish artwork recognition events
     private let artworkRecognizedSubject = PassthroughSubject<String, Never>()
+    
+    // Mapping of artwork names to their data
+    private var artworkData: [String: ArtworkReference] = [:]
     
     var recognitionPublisher: AnyPublisher<String, Never> {
         return artworkRecognizedSubject.eraseToAnyPublisher()
@@ -25,6 +29,9 @@ class ArtworkRecognitionDelegate: NSObject, ARSCNViewDelegate {
         
         // Create reference images from artwork data
         for artwork in artworkImages {
+            // Store artwork data for lookup
+            artworkData[artwork.name] = artwork
+            
             if let cgImage = artwork.image.cgImage {
                 let referenceImage = ARReferenceImage(
                     cgImage,
@@ -37,10 +44,19 @@ class ArtworkRecognitionDelegate: NSObject, ARSCNViewDelegate {
         }
     }
     
+    // Get artwork data by name
+    func getArtworkData(for name: String) -> ArtworkReference? {
+        return artworkData[name]
+    }
+    
     // ARSCNViewDelegate method to handle image detection
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
         if let imageAnchor = anchor as? ARImageAnchor,
-           let imageName = imageAnchor.referenceImage.name {
+           let imageName = imageAnchor.referenceImage.name,
+           !detectedArtworks.contains(imageName) {
+            
+            // Mark as detected to avoid duplicate notifications
+            detectedArtworks.insert(imageName)
             
             // Publish the artwork recognition event
             DispatchQueue.main.async {
@@ -50,6 +66,11 @@ class ArtworkRecognitionDelegate: NSObject, ARSCNViewDelegate {
             // Add visual indicator for the recognized artwork
             addVisualIndicator(to: node, for: imageAnchor, name: imageName)
         }
+    }
+    
+    // Clear detected artwork history
+    func clearDetections() {
+        detectedArtworks.removeAll()
     }
     
     private func addVisualIndicator(to node: SCNNode, for imageAnchor: ARImageAnchor, name: String) {

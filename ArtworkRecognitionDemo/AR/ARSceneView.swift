@@ -10,56 +10,59 @@ import ARKit
 
 struct ARSceneView: UIViewControllerRepresentable {
     @Binding var detectedArtwork: String?
-    @Binding var currentRoom: String
-    @State private var viewController: ARViewController?
+    @Binding var detectedRoom: String
+    @Binding var isPositioned: Bool
     let appFolderURL: URL
+    var viewController: ARViewController?
+    
+    class Coordinator: NSObject {
+        var parent: ARSceneView
+        
+        init(_ parent: ARSceneView) {
+            self.parent = parent
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
     
     func makeUIViewController(context: Context) -> ARViewController {
-        // Create artwork recognizer
-        let artworkRecognizer = ArtworkRecognitionDelegate(artworkImages: loadArtworkReferences())
-        
         // Create the AR controller
-        let controller = ARViewController(artworkRecognizer: artworkRecognizer)
+        let controller = ARViewController()
+        
+        // Set up callbacks
         controller.onArtworkDetected = { artwork in
             detectedArtwork = artwork
         }
         
-        // Store the controller
-        viewController = controller
+        controller.onRoomDetected = { room in
+            detectedRoom = room
+            isPositioned = true
+        }
         
         // Initialize MARS
         controller.initializeMARS(appFolderURL: appFolderURL)
+        
+        // Save controller reference
+        viewController = controller
         
         return controller
     }
     
     func updateUIViewController(_ uiViewController: ARViewController, context: Context) {
-        // Update the controller with current room if needed
-        if uiViewController.currentRoom != currentRoom {
-            uiViewController.currentRoom = currentRoom
+        // Update the controller if needed
+        if uiViewController.currentArtwork != detectedArtwork {
+            uiViewController.currentArtwork = detectedArtwork
+        }
+        
+        if uiViewController.currentRoom != detectedRoom {
+            uiViewController.currentRoom = detectedRoom
         }
     }
     
     // Helper to toggle debug mode
     func toggleDebugMode() {
         viewController?.toggleDebugMode()
-    }
-    
-    // Load artwork references - you'll need to customize this based on your artwork data
-    private func loadArtworkReferences() -> [ArtworkReference] {
-        return [
-            ArtworkReference(
-                name: "Mona Lisa",
-                image: UIImage(named: "mona_lisa") ?? UIImage(),
-                physicalWidth: 0.53, // in meters
-                description: "Painted by Leonardo da Vinci between 1503 and 1506"
-            ),
-            ArtworkReference(
-                name: "Starry Night",
-                image: UIImage(named: "starry_night") ?? UIImage(),
-                physicalWidth: 0.74, // in meters
-                description: "Painted by Vincent van Gogh in 1889"
-            )
-        ]
     }
 }

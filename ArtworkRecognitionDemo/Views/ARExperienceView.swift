@@ -8,12 +8,15 @@
 import SwiftUI
 
 struct ARExperienceView: View {
-    @Binding var detectedArtwork: String?
-    @Binding var currentRoom: String
-    let appFolderURL: URL
-    
+    @State private var detectedArtwork: String?
+    @State private var detectedRoom: String = "Not located"
+    @State private var isPositioned: Bool = false
     @State private var isDebugMode = false
     @State private var showArtworkInfo = false
+    @State private var isHelpVisible = true
+    
+    let appFolderURL: URL
+    
     @Environment(\.dismiss) private var dismiss
     
     // Reference to AR controller for toggling debug mode
@@ -24,18 +27,24 @@ struct ARExperienceView: View {
             // AR Scene
             ARSceneView(
                 detectedArtwork: $detectedArtwork,
-                currentRoom: $currentRoom,
+                detectedRoom: $detectedRoom,
+                isPositioned: $isPositioned,
                 appFolderURL: appFolderURL
             )
             .ignoresSafeArea()
-            .onAppear { viewBuilder in
-                self.arSceneView = viewBuilder
+            .onChange(of: arSceneView) { view in
+                if let view = view {
+                    // Store reference to the view
+                    self.arSceneView = view
+                }
             }
             
             // Status overlay at top
             VStack {
                 HStack {
                     Button(action: {
+                        // Reset state before dismissing
+                        detectedArtwork = nil
                         dismiss()
                     }) {
                         Image(systemName: "xmark")
@@ -49,7 +58,7 @@ struct ARExperienceView: View {
                     Spacer()
                     
                     VStack(alignment: .trailing) {
-                        Text("Room: \(currentRoom)")
+                        Text("Room: \(detectedRoom)")
                             .font(.headline)
                         
                         if let artwork = detectedArtwork {
@@ -69,23 +78,26 @@ struct ARExperienceView: View {
                 
                 // Bottom controls
                 HStack {
-                    Button(action: {
-                        isDebugMode.toggle()
-                        arSceneView?.toggleDebugMode()
-                    }) {
-                        Label(
-                            isDebugMode ? "Hide Debug" : "Show Debug",
-                            systemImage: isDebugMode ? "eye.slash" : "eye"
-                        )
-                        .padding()
-                        .background(Color.black.opacity(0.6))
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
+                    // Only show debug button after positioned
+                    if isPositioned {
+                        Button(action: {
+                            isDebugMode.toggle()
+                            arSceneView?.viewController?.toggleDebugMode()
+                        }) {
+                            Label(
+                                isDebugMode ? "Hide Map" : "Show Map",
+                                systemImage: isDebugMode ? "map.fill" : "map"
+                            )
+                            .padding()
+                            .background(Color.black.opacity(0.6))
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                        }
                     }
                     
                     Spacer()
                     
-                    if detectedArtwork != nil {
+                    if let artwork = detectedArtwork {
                         Button(action: {
                             showArtworkInfo = true
                         }) {
@@ -100,23 +112,72 @@ struct ARExperienceView: View {
                 .padding()
             }
             
-            // Artwork recognition popup
+            // Initial positioning help overlay
+            if !isPositioned && isHelpVisible {
+                VStack {
+                    Spacer()
+                    
+                    VStack(spacing: 16) {
+                        Text("Position Yourself First")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        Text("Point your camera at a room marker to establish your position in the museum.")
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.white)
+                        
+                        Button("Got it") {
+                            isHelpVisible = false
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                    }
+                    .padding()
+                    .background(Color.black.opacity(0.8))
+                    .cornerRadius(15)
+                    .padding()
+                    
+                    Spacer()
+                }
+            }
+            
+            // Artwork info popup
             if let artwork = detectedArtwork, showArtworkInfo {
                 VStack {
                     Spacer()
                     
                     VStack(spacing: 16) {
-                        Text("Artwork Detected")
+                        Text("Artwork Information")
                             .font(.headline)
                         
                         Text(artwork)
                             .font(.title2)
                             .bold()
                         
-                        Button("Close") {
-                            showArtworkInfo = false
+                        // Get artwork description from the controller
+                        if let artworkData = arSceneView?.viewController?.artworkRecognizer?.getArtworkData(for: artwork) {
+                            Text(artworkData.description)
+                                .padding(.vertical)
                         }
-                        .buttonStyle(.borderedProminent)
+                        
+                        HStack {
+                            Button("Close") {
+                                showArtworkInfo = false
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            Button("Clear") {
+                                showArtworkInfo = false
+                                detectedArtwork = nil
+                                
+                                // Clear detection history in the recognizer
+                                arSceneView?.viewController?.artworkRecognizer?.clearDetections()
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
                     }
                     .padding()
                     .background(Color.white)

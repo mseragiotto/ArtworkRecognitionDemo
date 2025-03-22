@@ -11,11 +11,8 @@ struct ContentView: View {
     @State private var appFolderURL: URL?
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var detectedArtwork: String?
-    @State private var currentRoom = "Not located"
     @State private var isShowingARView = false
     @State private var isShowingSettings = false
-    @State private var arSceneController: ARSceneView?
     
     var body: some View {
         NavigationView {
@@ -65,11 +62,9 @@ struct ContentView: View {
             }
             .navigationTitle("AR Museum Demo")
             .fullScreenCover(isPresented: $isShowingARView) {
-                ARExperienceView(
-                    detectedArtwork: $detectedArtwork,
-                    currentRoom: $currentRoom,
-                    appFolderURL: appFolderURL!
-                )
+                if let folderURL = appFolderURL {
+                    ARExperienceView(appFolderURL: folderURL)
+                }
             }
             .sheet(isPresented: $isShowingSettings) {
                 if let folderURL = appFolderURL {
