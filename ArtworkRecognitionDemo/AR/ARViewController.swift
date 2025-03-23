@@ -16,6 +16,7 @@ class ARViewController: UIViewController {
     
     // MARS components
     var marsPositionProvider: PositionProvider?
+    private var roomCheckTimer: Timer?
     
     // Artwork Recognition components
     var artworkRecognizer: ArtworkRecognitionDelegate?
@@ -44,20 +45,17 @@ class ARViewController: UIViewController {
         setupAR()
     }
     
+    deinit {
+        roomCheckTimer?.invalidate()
+    }
+    
     private func setupAR() {
+        print("🔧 Setting up AR view")
+        
         // Set up AR view
         arView.frame = view.bounds
         arView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(arView)
-        
-        // Set up delegate multiplexing
-        arView.delegate = delegateMultiplexer
-        
-        // Initial AR configuration - only detect MARS markers first
-        let configuration = ARWorldTrackingConfiguration()
-        configuration.planeDetection = [.horizontal, .vertical]
-        configuration.environmentTexturing = .automatic
-        arView.session.run(configuration)
         
         // Create instruction label
         let instructionLabel = UILabel()
@@ -80,6 +78,9 @@ class ARViewController: UIViewController {
         ])
         
         self.instructionLabel = instructionLabel
+        
+        // Important: DO NOT set up ARKit session here
+        // Let MARS handle the ARKit session to avoid conflicts
     }
     
     private var instructionLabel: UILabel?
@@ -95,6 +96,7 @@ class ARViewController: UIViewController {
             arSCNView: arView,
             worldMapConfigurationHandler: { [weak self] config in
                 guard let self = self else { return }
+                print("📝 MARS worldMapConfigurationHandler called")
                 
                 // Keep artwork recognition images if they are set
                 if let artworkRecognizer = self.artworkRecognizer,
@@ -115,14 +117,63 @@ class ARViewController: UIViewController {
             }
         )
         
+        // Set up delegate AFTER creating position provider
+        arView.delegate = delegateMultiplexer
+        
+        // Add MARS delegate to multiplexer
+        if let marsDelegate = marsPositionProvider?.delegate {
+            print("✅ Adding MARS delegate to multiplexer")
+            delegateMultiplexer.addDelegate(marsDelegate)
+        }
+        
+        // Log the building and marker information
+        if let provider = marsPositionProvider {
+            print("\n🏢 Building information:")
+            print("   - Name: \(provider.building.name)")
+            print("   - Floors: \(provider.building.floors.count)")
+            
+            print("\n🖼️ Reference markers in building:")
+            let detectionImages = provider.building.detectionImages
+            print("   - Total detection images: \(detectionImages.count)")
+            
+            for image in detectionImages {
+                print("   - \(image.name ?? "Unnamed") (size: \(image.physicalSize.width)m × \(image.physicalSize.height)m)")
+            }
+            print("\n")
+        }
+        
+        // Setup timer to periodically check for room changes
+        setupRoomChangeMonitoring()
+        
         // Listen for MARS notifications
         setupMARSNotifications()
         
         // Start MARS positioning
+        print("▶️ Starting MARS positioning")
         marsPositionProvider?.start()
     }
     
+    private func setupRoomChangeMonitoring() {
+        print("⏱️ Setting up room change monitoring timer")
+        
+        // Create a timer to check for room changes directly from the MARS provider
+        roomCheckTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self, let provider = self.marsPositionProvider else { return }
+            
+            // Get the current room name from MARS
+            let roomName = provider.activeRoom.name
+            
+            // If it's a valid room and different from our current room, handle it
+            if !roomName.isEmpty && roomName != "Not located" && self.currentRoom != roomName {
+                print("🏠 Room detected from polling: \(roomName)")
+                self.handleRoomDetected(roomName)
+            }
+        }
+    }
+    
     private func setupMARSNotifications() {
+        print("🔔 Setting up MARS notifications")
+        
         // Monitor room changes
         NotificationCenter.default.addObserver(
             forName: NSNotification.Name("MARSRoomChanged"),
@@ -130,43 +181,54 @@ class ARViewController: UIViewController {
             queue: .main
         ) { [weak self] notification in
             guard let self = self else { return }
+            print("📣 Received MARSRoomChanged notification")
             
             if let roomName = notification.userInfo?["roomName"] as? String {
-                self.currentRoom = roomName
-                self.onRoomDetected?(roomName)
-                
-                // Room detected, now we can enable artwork recognition
-                if !self.isPositioned {
-                    self.isPositioned = true
-                    self.enableArtworkRecognition(for: roomName)
-                    
-                    // Update instruction label
-                    DispatchQueue.main.async {
-                        self.instructionLabel?.text = "Position established! Now you can scan artworks."
-                        
-                        // Hide label after a delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                            UIView.animate(withDuration: 0.5) {
-                                self.instructionLabel?.alpha = 0
-                            }
-                        }
-                    }
-                }
+                print("🏠 Room detected from notification: \(roomName)")
+                self.handleRoomDetected(roomName)
             }
         }
         
-        // Handle coaching overlay
+        // Handle tracking state changes
         NotificationCenter.default.addObserver(
             forName: NSNotification.Name("MARSTrackingStateChanged"),
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            if let state = notification.userInfo?["state"] as? String, state == "Normal" {
-                // Post notification to hide coaching overlay
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("MARSHideCoachingOverlay"),
-                    object: nil
-                )
+            print("📣 Received MARSTrackingStateChanged notification")
+            if let state = notification.userInfo?["state"] as? String {
+                print("   - State: \(state)")
+            }
+        }
+    }
+    
+    private func handleRoomDetected(_ roomName: String) {
+        // Don't process empty or "Not located" rooms
+        if roomName.isEmpty || roomName == "Not located" {
+            return
+        }
+        
+        print("🏠 Handling room detection for: \(roomName)")
+        
+        // Update current room and notify
+        self.currentRoom = roomName
+        self.onRoomDetected?(roomName)
+        
+        // Room detected, now we can enable artwork recognition
+        if !self.isPositioned {
+            self.isPositioned = true
+            self.enableArtworkRecognition(for: roomName)
+            
+            // Update instruction label
+            DispatchQueue.main.async {
+                self.instructionLabel?.text = "Position established! Now you can scan artworks."
+                
+                // Hide label after a delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    UIView.animate(withDuration: 0.5) {
+                        self.instructionLabel?.alpha = 0
+                    }
+                }
             }
         }
     }
@@ -175,22 +237,29 @@ class ARViewController: UIViewController {
     
     func enableArtworkRecognition(for roomName: String) {
         // Only set up artwork recognition once positioned
-        guard isPositioned else { return }
-        
-        // Prevent duplicates
-        if selectedRoom == roomName && artworkRecognizer != nil {
+        guard isPositioned else {
+            print("⚠️ Cannot enable artwork recognition - not positioned yet")
             return
         }
         
+        // Prevent duplicates
+        if selectedRoom == roomName && artworkRecognizer != nil {
+            print("ℹ️ Artwork recognition already enabled for room: \(roomName)")
+            return
+        }
+        
+        print("🎨 Enabling artwork recognition for room: \(roomName)")
         selectedRoom = roomName
         
         // Get artworks for the current room
         currentRoomArtworks = getArtworksForRoom(roomName)
+        print("🖼️ Found \(currentRoomArtworks.count) artworks for room: \(roomName)")
         
         // Create artwork recognizer with room-specific artworks
         let recognizer = ArtworkRecognitionDelegate(artworkImages: currentRoomArtworks)
         
         // Add to delegate multiplexer
+        print("➕ Adding artwork recognizer to delegate multiplexer")
         delegateMultiplexer.addDelegate(recognizer)
         
         // Subscribe to artwork recognition events
@@ -199,6 +268,7 @@ class ARViewController: UIViewController {
             .sink { [weak self] artworkName in
                 guard let self = self else { return }
                 
+                print("🖼️ Artwork recognized: \(artworkName)")
                 self.currentArtwork = artworkName
                 self.onArtworkDetected?(artworkName)
             }
@@ -213,21 +283,28 @@ class ARViewController: UIViewController {
     
     private func updateARConfigurationWithArtworks(_ artworkImages: Set<ARReferenceImage>) {
         guard let currentConfiguration = arView.session.configuration as? ARWorldTrackingConfiguration else {
+            print("⚠️ Cannot update AR configuration - no current configuration")
             return
         }
+        
+        print("🔄 Updating AR configuration with artwork images")
         
         // Add artwork images to existing configuration
         var updatedConfiguration = currentConfiguration
         
         if let existingImages = updatedConfiguration.detectionImages {
+            print("ℹ️ Existing detection images: \(existingImages.count)")
             updatedConfiguration.detectionImages = existingImages.union(artworkImages)
         } else {
+            print("ℹ️ No existing detection images")
             updatedConfiguration.detectionImages = artworkImages
         }
         
+        print("ℹ️ Updated detection images: \(updatedConfiguration.detectionImages?.count ?? 0)")
         updatedConfiguration.maximumNumberOfTrackedImages = 10
         
         // Update session with new configuration
+        print("▶️ Running updated AR session configuration")
         arView.session.run(updatedConfiguration, options: [])
     }
     
