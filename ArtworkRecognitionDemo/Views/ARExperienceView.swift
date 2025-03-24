@@ -5,13 +5,6 @@
 //  Created by Matteo Seragiotto on 20/03/25.
 //
 
-//
-//  ARExperienceView.swift
-//  ArtworkRecognitionDemo
-//
-//  Created by Matteo Seragiotto on 20/03/25.
-//
-
 import SwiftUI
 
 struct ARExperienceView: View {
