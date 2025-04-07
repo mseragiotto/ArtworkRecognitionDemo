@@ -147,15 +147,18 @@ struct ARExperienceView: View {
           VStack(spacing: 16) {
             Text("Artwork Information")
               .font(.headline)
+              .foregroundColor(Color(UIColor.label))
             
             Text(artwork)
               .font(.title2)
               .bold()
+              .foregroundColor(Color(UIColor.label))
             
             // Get artwork description from the controller
             if let artworkData = arViewController?.artworkRecognizer?.getArtworkData(for: artwork) {
               Text(artworkData.description)
                 .padding(.vertical)
+                .foregroundColor(Color(UIColor.label))
             }
             
             HStack {
@@ -175,7 +178,7 @@ struct ARExperienceView: View {
             }
           }
           .padding()
-          .background(Color.white)
+          .background(Color(UIColor.systemBackground))
           .cornerRadius(15)
           .shadow(radius: 10)
           .padding()

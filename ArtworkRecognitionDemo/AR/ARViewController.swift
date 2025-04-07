@@ -87,10 +87,10 @@ class ARViewController: UIViewController {
     
     self.instructionLabel = instructionLabel
     
-    // Create status overlay (initially hidden)
+    // Create status overlay in the center top of the screen
     setupStatusOverlay()
     
-    // Create debug mode toggle button (positioned at the top right)
+    // Create debug toggle button
     setupDebugToggle()
     
     // Important: DO NOT set up ARKit session here
@@ -98,54 +98,42 @@ class ARViewController: UIViewController {
   }
   
   private func setupStatusOverlay() {
-    // Create a semi-transparent status view
+    // Create a status bar that goes across the top of the screen with gaps on sides
     let overlay = UIView()
-    overlay.backgroundColor = UIColor.black.withAlphaComponent(0.6)
+    overlay.backgroundColor = UIColor.black.withAlphaComponent(0.7)
     overlay.layer.cornerRadius = 8
     overlay.clipsToBounds = true
-    overlay.alpha = 0.8
     overlay.translatesAutoresizingMaskIntoConstraints = false
     
-    // Status label
+    // Combined status label
     let statusLabel = UILabel()
-    statusLabel.text = "MARS: Initializing"
+    statusLabel.text = "MARS: Initializing | Room: Not located"
     statusLabel.textColor = .white
     statusLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+    statusLabel.textAlignment = .center
     statusLabel.translatesAutoresizingMaskIntoConstraints = false
     statusLabel.tag = 100 // Tag for easy access later
     
-    // Room label
-    let roomLabel = UILabel()
-    roomLabel.text = "Room: Not located"
-    roomLabel.textColor = .white
-    roomLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-    roomLabel.translatesAutoresizingMaskIntoConstraints = false
-    roomLabel.tag = 101 // Tag for easy access later
-    
     // Add to overlay
     overlay.addSubview(statusLabel)
-    overlay.addSubview(roomLabel)
     
-    // Constraints for labels
+    // Constraints for label
     NSLayoutConstraint.activate([
       statusLabel.topAnchor.constraint(equalTo: overlay.topAnchor, constant: 8),
       statusLabel.leadingAnchor.constraint(equalTo: overlay.leadingAnchor, constant: 12),
       statusLabel.trailingAnchor.constraint(equalTo: overlay.trailingAnchor, constant: -12),
-      
-      roomLabel.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 4),
-      roomLabel.leadingAnchor.constraint(equalTo: overlay.leadingAnchor, constant: 12),
-      roomLabel.trailingAnchor.constraint(equalTo: overlay.trailingAnchor, constant: -12),
-      roomLabel.bottomAnchor.constraint(equalTo: overlay.bottomAnchor, constant: -8)
+      statusLabel.bottomAnchor.constraint(equalTo: overlay.bottomAnchor, constant: -8)
     ])
     
     // Add to view
     view.addSubview(overlay)
     
-    // Position at the top
+    // Position in the center top, with space for the close button on the left
     NSLayoutConstraint.activate([
       overlay.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
-      overlay.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
-      overlay.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -80) // Make room for debug toggle
+      overlay.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+      overlay.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, multiplier: 0.7), // 70% width max
+      overlay.heightAnchor.constraint(equalToConstant: 36)
     ])
     
     self.statusOverlay = overlay
@@ -248,12 +236,24 @@ class ARViewController: UIViewController {
     print("▶️ Starting MARS positioning")
     marsPositionProvider?.start()
     
-    // Force a second initialization after a delay to fix MARS startup issue
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+    // Add multiple restart attempts to ensure MARS properly initializes
+    /*DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
       guard let self = self, let provider = self.marsPositionProvider else { return }
-      print("▶️ Restarting MARS positioning to ensure proper initialization")
+      print("▶️ First restart of MARS positioning")
       provider.start()
-    }
+      
+      // Try again after another delay
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        print("▶️ Second restart of MARS positioning")
+        provider.start()
+        
+        // And one more time for good measure
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+          print("▶️ Final restart of MARS positioning")
+          provider.start()
+        }
+      }
+    }*/
   }
   
   private func setupStatusMonitoring() {
@@ -273,12 +273,8 @@ class ARViewController: UIViewController {
       // Get the current room name from MARS
       let roomName = provider.activeRoom.name
       
-      // Update room label
-      DispatchQueue.main.async {
-        if let roomLabel = self.statusOverlay?.viewWithTag(101) as? UILabel {
-          roomLabel.text = "Room: \(roomName)"
-        }
-      }
+      // Update status overlay
+      self.updateStatusOverlay()
       
       // If it's a valid room and different from our current room, handle it
       if !roomName.isEmpty && roomName != "Not located" && self.currentRoom != roomName {
@@ -291,19 +287,53 @@ class ARViewController: UIViewController {
   private func updateStatusOverlay() {
     DispatchQueue.main.async {
       if let statusLabel = self.statusOverlay?.viewWithTag(100) as? UILabel {
-        statusLabel.text = "MARS: \(self.trackingState)"
-        
-        // Color based on state
+        // Get state color
+        let stateColor: UIColor
         switch self.trackingState {
         case "Normal":
-          statusLabel.textColor = .green
+          stateColor = .green
         case "Re-Localizing...":
-          statusLabel.textColor = .yellow
+          stateColor = .yellow
         case "Insufficient Features":
-          statusLabel.textColor = .orange
+          stateColor = .orange
         default:
-          statusLabel.textColor = .white
+          stateColor = .white
         }
+        
+        // Create colored state text + room name
+        let attributedText = NSMutableAttributedString()
+        
+        // Add state text
+        let stateText = NSAttributedString(
+          string: "MARS: \(self.trackingState)",
+          attributes: [
+            .foregroundColor: stateColor,
+            .font: UIFont.systemFont(ofSize: 14, weight: .bold)
+          ]
+        )
+        attributedText.append(stateText)
+        
+        // Add separator
+        let separatorText = NSAttributedString(
+          string: " | ",
+          attributes: [
+            .foregroundColor: UIColor.white,
+            .font: UIFont.systemFont(ofSize: 14, weight: .medium)
+          ]
+        )
+        attributedText.append(separatorText)
+        
+        // Add room text
+        let roomText = NSAttributedString(
+          string: "Room: \(self.marsPositionProvider?.activeRoom.name ?? "Not located")",
+          attributes: [
+            .foregroundColor: UIColor.white,
+            .font: UIFont.systemFont(ofSize: 14, weight: .medium)
+          ]
+        )
+        attributedText.append(roomText)
+        
+        statusLabel.attributedText = attributedText
       }
     }
   }
@@ -457,8 +487,8 @@ class ARViewController: UIViewController {
   // Mock database of artworks by room
   private func getArtworksForRoom(_ roomName: String) -> [ArtworkReference] {
     // In a real app, this would come from a database or API
-    switch roomName {
-    case "Camera di sotto", "camera di sotto":
+    switch roomName.lowercased() {
+    case "camera di sotto", "camera_di_sotto":
       return [
         ArtworkReference(
           name: "Mona Lisa",
@@ -467,7 +497,7 @@ class ARViewController: UIViewController {
           description: "Painted by Leonardo da Vinci between 1503 and 1506, the Mona Lisa is one of the most famous paintings in the world."
         )
       ]
-    case "Salotto", "salotto":
+    case "salotto":
       return [
         ArtworkReference(
           name: "Starry Night",

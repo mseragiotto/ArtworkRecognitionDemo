@@ -74,96 +74,97 @@ class ArtworkRecognitionDelegate: NSObject, ARSCNViewDelegate {
   }
   
   private func addVisualIndicator(to node: SCNNode, for imageAnchor: ARImageAnchor, name: String) {
-    // Create visual indicator plane
-    let plane = SCNPlane(
-      width: imageAnchor.referenceImage.physicalSize.width,
-      height: imageAnchor.referenceImage.physicalSize.height
-    )
+    // Get the dimensions of the detected image
+    let width = imageAnchor.referenceImage.physicalSize.width
+    let height = imageAnchor.referenceImage.physicalSize.height
     
-    // Create a more visible green frame
+    // Create a frame node that will hold all our border elements
+    let frameNode = SCNNode()
+    frameNode.eulerAngles.x = -.pi   // Rotate to lie flat on the image
+    
+    // Green material for the frame
     let frameMaterial = SCNMaterial()
-    frameMaterial.diffuse.contents = UIColor.green.withAlphaComponent(0.8)
-    frameMaterial.lightingModel = .constant // Make sure it's always visible
+    frameMaterial.diffuse.contents = UIColor.green.withAlphaComponent(0.9)
+    frameMaterial.lightingModel = .constant // Always visible
     
-    // Create a transparent material for the center
-    let centerMaterial = SCNMaterial()
-    centerMaterial.diffuse.contents = UIColor.clear
-    centerMaterial.transparency = 0.2
+    // Create frame thickness
+    let thickness: CGFloat = 0.005  // 5mm
+    let borderWidth: CGFloat = 0.01  // 1cm
     
-    // Apply materials to the plane
-    plane.materials = [centerMaterial]
+    // Create the four border pieces correctly aligned
+    // Top border - along negative Z axis in SCNNode's rotated coordinate system
+    let topBorder = SCNBox(width: width, height: thickness, length: borderWidth, chamferRadius: 0)
+    topBorder.materials = [frameMaterial]
+    let topNode = SCNNode(geometry: topBorder)
+    topNode.position = SCNVector3(0, 0, -Float(height) / 2)
     
-    let planeNode = SCNNode(geometry: plane)
-    planeNode.eulerAngles.x = -.pi / 2
-    planeNode.opacity = 0.8
+    // Bottom border - along positive Z axis in SCNNode's rotated coordinate system
+    let bottomBorder = SCNBox(width: width, height: thickness, length: borderWidth, chamferRadius: 0)
+    bottomBorder.materials = [frameMaterial]
+    let bottomNode = SCNNode(geometry: bottomBorder)
+    bottomNode.position = SCNVector3(0, 0, Float(height) / 2)
     
-    // Create frame around the plane
-    let frameWidth: CGFloat = 0.02 // Adjust as needed
+    // Left border - along negative X axis in SCNNode's rotated coordinate system
+    let leftBorder = SCNBox(width: borderWidth, height: thickness, length: height, chamferRadius: 0)
+    leftBorder.materials = [frameMaterial]
+    let leftNode = SCNNode(geometry: leftBorder)
+    leftNode.position = SCNVector3(-Float(width) / 2, 0, 0)
     
-    // Top frame
-    let topFrame = SCNBox(width: plane.width, height: frameWidth, length: frameWidth, chamferRadius: 0)
-    topFrame.materials = [frameMaterial]
-    let topFrameNode = SCNNode(geometry: topFrame)
-    topFrameNode.position = SCNVector3(0, 0, Float(plane.height/2) - Float(frameWidth/2))
+    // Right border - along positive X axis in SCNNode's rotated coordinate system
+    let rightBorder = SCNBox(width: borderWidth, height: thickness, length: height, chamferRadius: 0)
+    rightBorder.materials = [frameMaterial]
+    let rightNode = SCNNode(geometry: rightBorder)
+    rightNode.position = SCNVector3(Float(width) / 2, 0, 0)
     
-    // Bottom frame
-    let bottomFrame = SCNBox(width: plane.width, height: frameWidth, length: frameWidth, chamferRadius: 0)
-    bottomFrame.materials = [frameMaterial]
-    let bottomFrameNode = SCNNode(geometry: bottomFrame)
-    bottomFrameNode.position = SCNVector3(0, 0, -Float(plane.height/2) + Float(frameWidth/2))
+    // Add all borders to the frame node
+    frameNode.addChildNode(topNode)
+    frameNode.addChildNode(bottomNode)
+    frameNode.addChildNode(leftNode)
+    frameNode.addChildNode(rightNode)
     
-    // Left frame
-    let leftFrame = SCNBox(width: frameWidth, height: frameWidth, length: plane.height, chamferRadius: 0)
-    leftFrame.materials = [frameMaterial]
-    let leftFrameNode = SCNNode(geometry: leftFrame)
-    leftFrameNode.position = SCNVector3(-Float(plane.width/2) + Float(frameWidth/2), 0, 0)
+    // Add the artwork name label
+    let textNode = createTextLabel(name: name, width: width, height: height)
+    frameNode.addChildNode(textNode)
     
-    // Right frame
-    let rightFrame = SCNBox(width: frameWidth, height: frameWidth, length: plane.height, chamferRadius: 0)
-    rightFrame.materials = [frameMaterial]
-    let rightFrameNode = SCNNode(geometry: rightFrame)
-    rightFrameNode.position = SCNVector3(Float(plane.width/2) - Float(frameWidth/2), 0, 0)
+    // Add the frame to the main node
+    node.addChildNode(frameNode)
+  }
+  
+  private func createTextLabel(name: String, width: CGFloat, height: CGFloat) -> SCNNode {
+    // Create a container node for the label
+    let containerNode = SCNNode()
     
-    // Add frame parts to the plane node
-    planeNode.addChildNode(topFrameNode)
-    planeNode.addChildNode(bottomFrameNode)
-    planeNode.addChildNode(leftFrameNode)
-    planeNode.addChildNode(rightFrameNode)
+    // Create a background plane for the text
+    let backgroundGeometry = SCNPlane(width: width * 0.8, height: 0.04)
+    let backgroundMaterial = SCNMaterial()
+    backgroundMaterial.diffuse.contents = UIColor.black.withAlphaComponent(0.7)
+    backgroundGeometry.materials = [backgroundMaterial]
     
-    // Add a text node with the artwork name
-    let textGeometry = SCNText(string: name, extrusionDepth: 0.01)
-    textGeometry.font = UIFont.boldSystemFont(ofSize: 0.1)
+    let backgroundNode = SCNNode(geometry: backgroundGeometry)
+    backgroundNode.position = SCNVector3(0, 0.01, -Float(height) / 2 - 0.03) // Positioned above the top frame
+    
+    // Create the text
+    let textGeometry = SCNText(string: name, extrusionDepth: 0.001)
+    textGeometry.font = UIFont.boldSystemFont(ofSize: 0.03)
+    textGeometry.alignmentMode = CATextLayerAlignmentMode.center.rawValue
     textGeometry.firstMaterial?.diffuse.contents = UIColor.white
-    textGeometry.firstMaterial?.lightingModel = .constant // Ensure visibility
+    textGeometry.firstMaterial?.lightingModel = .constant // Always visible
     
+    // Calculate text size for centering
     let textNode = SCNNode(geometry: textGeometry)
-    textNode.scale = SCNVector3(0.01, 0.01, 0.01)
+    textNode.scale = SCNVector3(0.01, 0.01, 0.01) // Scale down the text
     
-    // Calculate position to center the text
+    // Calculate bounds to center the text
     let (min, max) = textNode.boundingBox
     let textWidth = max.x - min.x
     
-    // Position text above the frame
-    textNode.position = SCNVector3(-Float(textWidth) * 0.01 / 2, 0.05, Float(plane.height / 2) + 0.05)
+    // Position the text on the background
+    textNode.position = SCNVector3(-Float(textWidth) * 0.005, 0.005, -Float(height) / 2 - 0.03)
     
-    // Add a backdrop for the text
-    let backdropWidth = textWidth * 0.01 + 0.02
-    let backdropHeight: Float = 0.03
-    let backdropGeometry = SCNBox(
-      width: CGFloat(backdropWidth),
-      height: CGFloat(backdropHeight),
-      length: 0.01,
-      chamferRadius: 0.005
-    )
-    backdropGeometry.firstMaterial?.diffuse.contents = UIColor.black.withAlphaComponent(0.7)
+    // Add both nodes to the container
+    containerNode.addChildNode(backgroundNode)
+    containerNode.addChildNode(textNode)
     
-    let backdropNode = SCNNode(geometry: backdropGeometry)
-    backdropNode.position = SCNVector3(0, 0.05, Float(plane.height / 2) + 0.05)
-    
-    // Add text and backdrop to the frame
-    planeNode.addChildNode(backdropNode)
-    planeNode.addChildNode(textNode)
-    
-    node.addChildNode(planeNode)
+    return containerNode
   }
 }
