@@ -10,6 +10,7 @@ import SwiftUI
 struct FolderSettingsView: View {
   let folderURL: URL
   @State private var copiedPath = false
+  @Environment(\.dismiss) private var dismiss
   
   var body: some View {
     NavigationView {
@@ -60,7 +61,7 @@ struct FolderSettingsView: View {
         ToolbarItem(placement: .navigationBarTrailing) {
           Button("Done") {
             // This will dismiss the sheet
-            UIPasteboard.general.string = nil
+            dismiss()
           }
         }
       }
